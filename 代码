@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>周游夜话 - 南衙千秋月夜游项目</title>
+    <link href="https://fonts.googleapis.com/css2?family=Zhi+Mang+Xing&family=Ma+Shan+Zheng&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-blue: #00e5ff;
+            --accent-cyan: #00f3ff;
+            --glass-bg: rgba(10, 10, 10, 0.75);
+            --glass-border: rgba(255, 255, 255, 0.15);
+            --font-brush: "Zhi Mang Xing", "Ma Shan Zheng", "Kaiti", "STKaiti", serif;
+            --text-shadow-strong: 0 0 15px rgba(0, 0, 0, 0.9), 0 0 30px rgba(0, 0, 0, 0.5), 2px 2px 4px rgba(0, 0, 0, 0.8);
+            --text-shadow-glow: 0 0 20px rgba(255, 255, 255, 0.4), 0 0 40px rgba(0, 0, 0, 0.8);
+        }
+
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
+            background-color: #000; color: #fff;
+            font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+        }
+
+        #canvas-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+
+        .content-overlay {
+            position: absolute; top: 50%; right: 8%; transform: translateY(-50%);
+            z-index: 10; pointer-events: none; display: flex; flex-direction: column;
+            align-items: flex-end; text-align: right; width: auto;
+        }
+
+        .brush-white {
+            font-family: var(--font-brush); color: #ffffff; font-weight: 400; margin: 0;
+            line-height: 1.1; text-shadow: var(--text-shadow-glow);
+        }
+
+        .header-main h1 { font-size: clamp(3rem, 8vw, 7.5rem); letter-spacing: 2px; }
+        .header-main .subtitle-cn { font-size: clamp(1.2rem, 3vw, 2.2rem); margin-top: 10px; letter-spacing: 4px; }
+        .header-main .subtitle-en {
+            font-size: 0.95rem; color: #ffffff; opacity: 0.8; letter-spacing: 1px;
+            white-space: nowrap; font-family: Arial, sans-serif; margin-top: 8px;
+            text-transform: capitalize; text-shadow: var(--text-shadow-strong);
+        }
+
+        .secondary-info h2 { font-size: clamp(1.5rem, 4vw, 3.5rem); margin: 35px 0 10px 0; letter-spacing: 4px; }
+        .secondary-info h3 { font-size: clamp(1rem, 2vw, 1.8rem); margin: 0; letter-spacing: 5px; }
+
+        .brush-divider {
+            width: 240px; height: 1px; background: linear-gradient(to left, #ffffff, transparent);
+            margin: 25px 0; box-shadow: 0 0 10px rgba(255,255,255,0.5);
+        }
+
+        .content-body {
+            font-size: 1.1rem; line-height: 1.8; color: #eeeeee; letter-spacing: 2px;
+            max-width: 480px; font-weight: 300; text-shadow: var(--text-shadow-strong);
+        }
+
+        #settings-toggle {
+            position: absolute; top: 35px; left: 35px; width: 50px; height: 50px;
+            background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border); border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; z-index: 110; transition: all 0.4s;
+        }
+        #settings-toggle:hover { transform: scale(1.1) rotate(90deg); border-color: var(--primary-blue); }
+        #settings-toggle svg { width: 24px; height: 24px; fill: var(--primary-blue); }
+
+        #settings-panel {
+            position: absolute; top: 100px; left: 35px; width: 300px;
+            background: var(--glass-bg); backdrop-filter: blur(25px);
+            border: 1px solid var(--glass-border); border-radius: 16px;
+            padding: 24px; z-index: 100; opacity: 0; pointer-events: none;
+            transform: translateX(-20px); transition: all 0.5s;
+        }
+        #settings-panel.active { opacity: 1; pointer-events: all; transform: translateX(0); }
+        #settings-panel h3 { color: var(--primary-blue); border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; font-size: 0.8rem; margin-top: 0; letter-spacing: 2px; }
+
+        .setting-group { margin-bottom: 18px; }
+        .setting-group label { display: flex; justify-content: space-between; font-size: 0.7rem; color: #ccc; margin-bottom: 8px; }
+        .value-display { color: var(--primary-blue); font-weight: bold; font-family: monospace; }
+        input[type=range] { width: 100%; height: 3px; background: rgba(255,255,255,0.1); border-radius: 5px; outline: none; -webkit-appearance: none; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; background: var(--primary-blue); border-radius: 50%; cursor: pointer; box-shadow: 0 0 10px var(--primary-blue); }
+
+        .loading-screen {
+            position: fixed; inset: 0; background: #000; display: flex;
+            flex-direction: column; justify-content: center; align-items: center; z-index: 999;
+        }
+        .loader-bar-bg { width: 150px; height: 1px; background: rgba(255, 255, 255, 0.05); margin-top: 15px; }
+        .loader-bar-fill { width: 0%; height: 100%; background: var(--primary-blue); transition: width 0.3s; }
+        
+        .section-label { font-size: 0.6rem; color: rgba(255,255,255,0.3); margin: 20px 0 10px; letter-spacing: 2px; text-transform: uppercase; }
+    </style>
+</head>
+<body>
+
+    <div class="loading-screen" id="loader">
+        <div style="font-size: 0.6rem; letter-spacing: 4px; color: var(--primary-blue); text-transform: uppercase;">Digitalizing Architecture...</div>
+        <div class="loader-bar-bg"><div class="loader-bar-fill" id="loader-progress"></div></div>
+    </div>
+
+    <div class="content-overlay">
+        <div class="header-main">
+            <h1 class="brush-white">周游夜话</h1>
+            <div class="brush-white subtitle-cn">夜游场景体验设计</div>
+            <div class="subtitle-en">"Zhouyou Yehu" night tour scene experience design</div>
+        </div>
+        <div class="secondary-info">
+            <h2 class="brush-white">《南衙千秋月夜游》</h2>
+            <h3 class="brush-white">河南省开封府</h3>
+        </div>
+        <div class="brush-divider"></div>
+        <div class="content-body">
+            以“以宋为骨，科技为翼”为理念，主打全息沉浸媒体互动剧，具宋文化与科技融合的基础。
+        </div>
+    </div>
+
+    <div id="settings-toggle"><svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.3-.06.61-.06.94s.02.64.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg></div>
+
+    <div id="settings-panel">
+        <h3>视觉控制面板</h3>
+        
+        <div class="section-label">主体模型 / Architecture</div>
+        <div class="setting-group">
+            <label>模型缩放比例 <span class="value-display" id="val-scale">1.5</span></label>
+            <input type="range" id="input-scale" min="0.5" max="3.0" step="0.1" value="1.5">
+        </div>
+        <div class="setting-group">
+            <label>模型粒子密度 <span class="value-display" id="val-density">2</span></label>
+            <input type="range" id="input-density" min="1" max="10" step="1" value="2">
+        </div>
+        <div class="setting-group">
+            <label>主体粒子大小 <span class="value-display" id="val-p-size">0.012</span></label>
+            <input type="range" id="input-p-size" min="0.005" max="0.05" step="0.001" value="0.012">
+        </div>
+
+        <div class="section-label">环绕星云 / Orbital Particles</div>
+        <div class="setting-group">
+            <label>环绕粒子数量 <span class="value-display" id="val-amount">85000</span></label>
+            <input type="range" id="input-amount" min="10000" max="150000" step="1000" value="85000">
+        </div>
+        <div class="setting-group">
+            <label>环绕粒子尺寸 <span class="value-display" id="val-orb-size">0.18</span></label>
+            <input type="range" id="input-orb-size" min="0.01" max="0.5" step="0.01" value="0.18">
+        </div>
+        <div class="setting-group">
+            <label>环绕旋转速度 <span class="value-display" id="val-speed">0.3</span></label>
+            <input type="range" id="input-speed" min="0.05" max="2.0" step="0.05" value="0.3">
+        </div>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js"></script>
+
+    <script>
+        let scene, camera, renderer, controls, particleSystem, orbitalSystem;
+        let modelPoints = [];
+        const container = document.getElementById('canvas-container');
+
+        const params = {
+            modelScale: 1.5,
+            modelDensity: 2,
+            particleSize: 0.012,
+            particleBreathSpeed: 0.6,
+            orbitalAmount: 85000, 
+            orbitalSize: 0.18,   
+            orbitalSpeed: 0.3,
+            mainColor: "#00e5ff",
+            trailColor: "#00aaff",
+            modelOffsetX: -250,
+            modelOffsetY: -25
+        };
+
+        // 更新后的模型地址 (已转换为 raw 数据链接以支持加载)
+        const MODEL_URL = 'https://raw.githubusercontent.com/y0465224-max/baozhenmoxing/27350d980692239d07dc51bb08fb6d4992871ef9/compressed-baozhengmx.glb';
+        const DRACO_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.4.1/';
+
+        function createGlowTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 64; canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+            const gradient = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+            gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+            gradient.addColorStop(0.3, 'rgba(255, 255, 255, 0.6)');
+            gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, 64, 64);
+            const texture = new THREE.Texture(canvas);
+            texture.needsUpdate = true;
+            return texture;
+        }
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0x000000, 0.008);
+
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 2000);
+            camera.position.set(200, 40, 150);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            container.appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.autoRotate = true;
+            controls.autoRotateSpeed = 0.4;
+            controls.target.set(params.modelOffsetX, params.modelOffsetY, 0);
+
+            createOrbitalTrails();
+            loadModel();
+            setupUI();
+
+            window.addEventListener('resize', onWindowResize);
+            animate();
+        }
+
+        function setupUI() {
+            const toggle = document.getElementById('settings-toggle');
+            const panel = document.getElementById('settings-panel');
+            toggle.onclick = (e) => { e.stopPropagation(); panel.classList.toggle('active'); };
+            window.onclick = () => panel.classList.remove('active');
+            panel.onclick = (e) => e.stopPropagation();
+
+            document.getElementById('input-scale').oninput = (e) => {
+                params.modelScale = parseFloat(e.target.value);
+                document.getElementById('val-scale').innerText = params.modelScale;
+                if(particleSystem) {
+                    particleSystem.scale.set(params.modelScale, params.modelScale, params.modelScale);
+                }
+                createOrbitalTrails(); 
+            };
+            document.getElementById('input-density').oninput = (e) => {
+                params.modelDensity = parseInt(e.target.value);
+                document.getElementById('val-density').innerText = params.modelDensity;
+                updateModelParticles(); 
+            };
+            document.getElementById('input-p-size').oninput = (e) => {
+                params.particleSize = parseFloat(e.target.value);
+                document.getElementById('val-p-size').innerText = params.particleSize;
+                if(particleSystem) particleSystem.material.size = params.particleSize;
+            };
+            document.getElementById('input-amount').oninput = (e) => {
+                params.orbitalAmount = parseInt(e.target.value);
+                document.getElementById('val-amount').innerText = params.orbitalAmount;
+                createOrbitalTrails();
+            };
+            document.getElementById('input-orb-size').oninput = (e) => {
+                params.orbitalSize = parseFloat(e.target.value);
+                document.getElementById('val-orb-size').innerText = params.orbitalSize;
+                if(orbitalSystem) orbitalSystem.material.size = params.orbitalSize;
+            };
+            document.getElementById('input-speed').oninput = (e) => {
+                params.orbitalSpeed = parseFloat(e.target.value);
+                document.getElementById('val-speed').innerText = params.orbitalSpeed;
+            };
+        }
+
+        function createOrbitalTrails() {
+            if (orbitalSystem) scene.remove(orbitalSystem);
+            const count = params.orbitalAmount;
+            const geom = new THREE.BufferGeometry();
+            const pos = new Float32Array(count * 3);
+            const extra = new Float32Array(count * 4); 
+
+            for (let i = 0; i < count; i++) {
+                const phi = Math.random() * Math.PI * 2;
+                const theta = Math.acos(2 * Math.random() - 1);
+                const radius = (12 + Math.random() * 14) * params.modelScale;
+                
+                extra[i * 4] = phi;
+                extra[i * 4 + 1] = theta;
+                extra[i * 4 + 2] = radius;
+                extra[i * 4 + 3] = (Math.random() * 0.5 + 0.5);
+
+                pos[i * 3] = radius * Math.sin(theta) * Math.cos(phi) + params.modelOffsetX;
+                pos[i * 3 + 1] = radius * Math.sin(theta) * Math.sin(phi) + params.modelOffsetY;
+                pos[i * 3 + 2] = radius * Math.cos(theta);
+            }
+
+            geom.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            geom.setAttribute('extra', new THREE.BufferAttribute(extra, 4));
+
+            orbitalSystem = new THREE.Points(geom, new THREE.PointsMaterial({
+                size: params.orbitalSize, 
+                color: new THREE.Color(params.trailColor), 
+                transparent: true,
+                opacity: 0.4,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false,
+                map: createGlowTexture()
+            }));
+            scene.add(orbitalSystem);
+        }
+
+        function loadModel() {
+            const draco = new THREE.DRACOLoader();
+            draco.setDecoderPath(DRACO_PATH);
+            const loader = new THREE.GLTFLoader();
+            loader.setDRACOLoader(draco);
+
+            loader.load(MODEL_URL, (gltf) => {
+                modelPoints = [];
+                gltf.scene.traverse((node) => {
+                    if (node.isMesh) {
+                        const attr = node.geometry.attributes.position;
+                        const v = new THREE.Vector3();
+                        for (let i = 0; i < attr.count; i++) {
+                            v.fromBufferAttribute(attr, i);
+                            node.localToWorld(v);
+                            modelPoints.push(new THREE.Vector3().copy(v));
+                        }
+                    }
+                });
+                updateModelParticles();
+                document.getElementById('loader').style.display = 'none';
+            }, (xhr) => {
+                const p = (xhr.loaded / (xhr.total || 10000000)) * 100;
+                document.getElementById('loader-progress').style.width = Math.min(p, 100) + '%';
+            }, (error) => {
+                console.error("模型加载错误:", error);
+            });
+        }
+
+        function updateModelParticles() {
+            if (particleSystem) scene.remove(particleSystem);
+            if (modelPoints.length === 0) return;
+            const filtered = modelPoints.filter((_, i) => i % params.modelDensity === 0);
+            const geom = new THREE.BufferGeometry();
+            const pos = new Float32Array(filtered.length * 3);
+            const ori = new Float32Array(filtered.length * 3);
+
+            filtered.forEach((p, i) => {
+                pos[i * 3] = p.x; pos[i * 3 + 1] = p.y; pos[i * 3 + 2] = p.z;
+                ori[i * 3] = p.x; ori[i * 3 + 1] = p.y; ori[i * 3 + 2] = p.z;
+            });
+
+            geom.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            geom.setAttribute('origin', new THREE.BufferAttribute(ori, 3));
+            
+            particleSystem = new THREE.Points(geom, new THREE.PointsMaterial({
+                size: params.particleSize, color: new THREE.Color(params.mainColor),
+                transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending,
+                map: createGlowTexture()
+            }));
+            
+            const box = new THREE.Box3().setFromObject(particleSystem);
+            const center = box.getCenter(new THREE.Vector3());
+            particleSystem.position.copy(center).negate().add(new THREE.Vector3(params.modelOffsetX, params.modelOffsetY, 0));
+            particleSystem.scale.set(params.modelScale, params.modelScale, params.modelScale);
+            scene.add(particleSystem);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const time = Date.now() * 0.001;
+
+            if (orbitalSystem) {
+                const pos = orbitalSystem.geometry.attributes.position;
+                const data = orbitalSystem.geometry.attributes.extra;
+                for (let i = 0; i < pos.count; i++) {
+                    const phiBase = data.getX(i);
+                    const thetaBase = data.getY(i);
+                    const radiusBase = data.getZ(i);
+                    const speedF = data.getW(i);
+                    const currentPhi = phiBase + time * params.orbitalSpeed * speedF;
+                    const thetaWave = Math.sin(time * 2.0 + phiBase * 4.0) * 0.05;
+                    const theta = thetaBase + thetaWave;
+                    const rWave = Math.sin(time * 1.5 + phiBase * 2.0) * 0.5;
+                    const radius = radiusBase + rWave;
+
+                    pos.setXYZ(i, 
+                        radius * Math.sin(theta) * Math.cos(currentPhi) + params.modelOffsetX, 
+                        radius * Math.sin(theta) * Math.sin(currentPhi) + params.modelOffsetY, 
+                        radius * Math.cos(theta)
+                    );
+                }
+                pos.needsUpdate = true;
+            }
+
+            if (particleSystem) {
+                const pos = particleSystem.geometry.attributes.position;
+                const ori = particleSystem.geometry.attributes.origin;
+                for (let i = 0; i < pos.count; i++) {
+                    const breath = Math.sin(time * params.particleBreathSpeed + ori.getX(i) * 0.2) * 0.08;
+                    pos.setXYZ(i, ori.getX(i) + breath, ori.getY(i) + breath, ori.getZ(i) + breath);
+                }
+                pos.needsUpdate = true;
+            }
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
